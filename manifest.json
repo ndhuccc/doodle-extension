@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Doodle Overlay 塗鴉白板",
+  "version": "1.0",
+  "description": "在任意網頁上疊加塗鴉，教學白板用途。Alt+D 切換。",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end",
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_title": "Doodle Overlay (Alt+D)"
+  }
+}
