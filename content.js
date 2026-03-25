@@ -137,7 +137,7 @@
   /* ── FAB ── */
   const fab = document.createElement('button');
   fab.id = '__doodle_fab';
-  fab.title = '塗鴉白板 (Alt+Shift+D)';
+  fab.title = '塗鴉白板';
   fab.textContent = '✏️';
   fab.style.cssText = 'all:unset!important;position:fixed!important;bottom:18px!important;' +
     'right:18px!important;z-index:2147483647!important;width:46px!important;height:46px!important;' +
@@ -455,11 +455,10 @@
 
   /* ── 鍵盤快捷鍵 ── */
   document.addEventListener('keydown', e => {
-    if (e.altKey && e.shiftKey && e.code === 'KeyD') { e.preventDefault(); toggle(); return; }
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'w' || e.key === 'W')) { e.preventDefault(); toggleWhiteMode(); return; }
-    if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); toggleLaser(); return; }
     if (!active) return;
     if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (e.key === 'w' || e.key === 'W') { e.preventDefault(); toggleWhiteMode(); return; }
+      if (e.key === 'l' || e.key === 'L') { e.preventDefault(); toggleLaser(); return; }
       if (e.key === 'p' || e.key === 'P') { setTool('pen'); return; }
       if (e.key === 'h' || e.key === 'H') { setTool('highlight'); return; }
       if (e.key === 'a' || e.key === 'A') { setTool('arrow'); return; }
