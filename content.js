@@ -249,6 +249,34 @@
     if (dragging) { dragging = false; dragHandle.style.cursor = 'grab'; }
   });
 
+  /* ── FAB 拖拉邏輯 ── */
+  let fabDragging = false;
+  let fabOffX = 0, fabOffY = 0;
+
+  fab.addEventListener('mousedown', e => {
+    fabDragging = true;
+    const rect = fab.getBoundingClientRect();
+    fabOffX = e.clientX - rect.left;
+    fabOffY = e.clientY - rect.top;
+    fab.style.cursor = 'grabbing';
+    e.stopPropagation();
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!fabDragging) return;
+    const x = e.clientX - fabOffX;
+    const y = e.clientY - fabOffY;
+    fab.style.setProperty('left',   x + 'px', 'important');
+    fab.style.setProperty('top',    y + 'px', 'important');
+    fab.style.setProperty('right',  'auto',   'important');
+    fab.style.setProperty('bottom', 'auto',   'important');
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (fabDragging) { fabDragging = false; fab.style.cursor = 'pointer'; }
+  });
+
   /* ── 繪圖邏輯 ── */
   function getCtxPos(cx, cy) {
     return [cx + window.scrollX, cy + window.scrollY];
