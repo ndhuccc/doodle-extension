@@ -70,7 +70,7 @@
         laserCtx.beginPath();
         laserCtx.moveTo(startX, startY);
         laserCtx.quadraticCurveTo(p0.x, p0.y, mx0, my0);
-        laserCtx.strokeStyle = `rgba(255,20,20,${alpha})`;
+        laserCtx.strokeStyle = `rgba(255,0,0,${alpha})`;
         laserCtx.lineWidth = width;
         laserCtx.lineCap = 'round';
         laserCtx.lineJoin = 'round';
@@ -80,12 +80,12 @@
 
     if (laserMode && laserX > -999) {
       laserCtx.beginPath();
-      laserCtx.arc(laserX, laserY, 9, 0, Math.PI * 2);
-      laserCtx.fillStyle = 'rgba(255,255,255,0.5)';
+      laserCtx.arc(laserX, laserY, 12, 0, Math.PI * 2);
+      laserCtx.fillStyle = 'rgba(255,200,0,0.8)';
       laserCtx.fill();
       laserCtx.beginPath();
       laserCtx.arc(laserX, laserY, 6, 0, Math.PI * 2);
-      laserCtx.fillStyle = 'rgba(255,20,20,1)';
+      laserCtx.fillStyle = 'rgb(255,0,0)';
       laserCtx.fill();
     }
 
