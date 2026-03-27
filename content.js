@@ -1,16 +1,42 @@
 (function () {
+  console.log('[DoodleExtension] content.js loaded');
   'use strict';
-  if (window.__doodleOverlayLoaded) return;
+  // Same isolated-world reinjection guard.
+  if (window.__doodleExtensionOverlayLoaded && document.getElementById('__doodle_fab')) return;
+  window.__doodleExtensionOverlayLoaded = true;
   window.__doodleOverlayLoaded = true;
+  const INSTANCE_ID = `doodle_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const OWNER_ATTR = 'data-doodle-owner';
+
+  function claimOwnership() {
+    document.documentElement.setAttribute(OWNER_ATTR, INSTANCE_ID);
+  }
+
+  function isOwner() {
+    return document.documentElement.getAttribute(OWNER_ATTR) === INSTANCE_ID;
+  }
+
+  function removeAllOverlayNodesInPage() {
+    document.querySelectorAll('#__doodle_canvas, #__doodle_laser, #__doodle_bar, #__doodle_fab').forEach(node => {
+      if (node.parentNode) node.parentNode.removeChild(node);
+    });
+  }
+
+  // Always take ownership and remove stale overlays before creating a fresh single instance.
+  claimOwnership();
+  removeAllOverlayNodesInPage();
 
   /* ── 狀態 ── */
   let active   = false;
   let drawing  = false;
   let dragging = false;
   let dragOffX = 0, dragOffY = 0;
-  let tool     = 'pen';
-  let penColor = '#ef4444';
-  let penSize  = 5;
+  const INITIAL_TOOL = 'pen';
+  const INITIAL_COLOR = '#ef4444';
+  const INITIAL_SIZE = 5;
+  let tool     = INITIAL_TOOL;
+  let penColor = INITIAL_COLOR;
+  let penSize  = INITIAL_SIZE;
   let snapshots = [];
   let lastX = 0, lastY = 0;
   let arrowStartX = 0, arrowStartY = 0;
@@ -98,9 +124,10 @@
   }
 
   function toggleLaser() {
+    if (!isOwner()) return;
     laserMode = !laserMode;
     if (laserMode) {
-      if (!active) toggle();
+      if (!active) doodleExtensionToggle();
       fitLaserCanvas();
       if (!laserAnimId) laserAnimId = requestAnimationFrame(animateLaser);
       fab.textContent = '🔴';
@@ -216,6 +243,7 @@
     'z-index:2147483647!important;display:none!important;';
 
   /* ── DOM 掛載 ── */
+  if (!isOwner()) return;
   document.body.appendChild(canvas);
   document.body.appendChild(laserCanvas);
   document.body.appendChild(bar);
@@ -252,9 +280,14 @@
   /* ── FAB 拖拉邏輯 ── */
   let fabDragging = false;
   let fabOffX = 0, fabOffY = 0;
+  let fabDownX = 0, fabDownY = 0;
+  let fabMoved = false;
 
   fab.addEventListener('mousedown', e => {
     fabDragging = true;
+    fabMoved = false;
+    fabDownX = e.clientX;
+    fabDownY = e.clientY;
     const rect = fab.getBoundingClientRect();
     fabOffX = e.clientX - rect.left;
     fabOffY = e.clientY - rect.top;
@@ -265,6 +298,10 @@
 
   document.addEventListener('mousemove', e => {
     if (!fabDragging) return;
+    if (Math.abs(e.clientX - fabDownX) > 3 || Math.abs(e.clientY - fabDownY) > 3) {
+      fabMoved = true;
+    }
+    if (!fabMoved) return;
     const x = e.clientX - fabOffX;
     const y = e.clientY - fabOffY;
     fab.style.setProperty('left',   x + 'px', 'important');
@@ -274,7 +311,12 @@
   });
 
   document.addEventListener('mouseup', () => {
-    if (fabDragging) { fabDragging = false; fab.style.cursor = 'pointer'; }
+    if (!fabDragging) return;
+    fabDragging = false;
+    fab.style.cursor = 'pointer';
+    if (!fabMoved) {
+      doodleExtensionToggle(!isCurrentToolbarVisible());
+    }
   });
 
   /* ── 繪圖邏輯 ── */
@@ -366,7 +408,7 @@
   }
 
   document.addEventListener('mousemove', e => {
-    if (!laserMode) return;
+    if (!active || !laserMode) return;
     laserX = e.clientX + window.scrollX;
     laserY = e.clientY + window.scrollY;
     laserTrail.push({ x: laserX, y: laserY, t: Date.now() });
@@ -390,26 +432,107 @@
     });
   }
 
-  function toggle() {
-    active = !active;
+  function renderColorSelection() {
+    bar.querySelectorAll('[data-dcolor]').forEach(d => {
+      d.style.border = `2px solid ${d.dataset.dcolor === penColor ? '#fff' : 'transparent'}`;
+    });
+  }
+
+  function clearAllDoodleLayersInPage() {
+    // Clear every doodle/laser canvas in DOM to avoid stale drawings from duplicated instances.
+    document.querySelectorAll('#__doodle_canvas, #__doodle_laser').forEach(node => {
+      const layerCtx = node.getContext && node.getContext('2d');
+      if (layerCtx) layerCtx.clearRect(0, 0, node.width, node.height);
+    });
+  }
+
+  function hideAllOverlayUIInPage() {
+    document.querySelectorAll('#__doodle_bar').forEach(node => {
+      node.style.setProperty('display', 'none', 'important');
+    });
+    document.querySelectorAll('#__doodle_canvas').forEach(node => {
+      node.style.setProperty('pointer-events', 'none', 'important');
+    });
+    document.querySelectorAll('#__doodle_fab').forEach(node => {
+      node.textContent = '✏️';
+      node.style.setProperty('background', 'rgba(25,25,35,0.85)', 'important');
+      node.style.setProperty('box-shadow', '0 3px 14px rgba(0,0,0,0.45)', 'important');
+    });
+  }
+
+  function anyToolbarVisibleInPage() {
+    return Array.from(document.querySelectorAll('#__doodle_bar')).some(node =>
+      window.getComputedStyle(node).display !== 'none'
+    );
+  }
+
+  function isCurrentToolbarVisible() {
+    return window.getComputedStyle(bar).display !== 'none';
+  }
+
+  function resetOverlayState() {
+    // Stop any in-progress interactions and clear drawings.
+    drawing = false;
+    dragging = false;
+    fabDragging = false;
+    clearAllDoodleLayersInPage();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
+    snapshots = [];
+    arrowPreviewSnap = null;
+
+    // Reset tool and drawing preferences to initial defaults.
+    tool = INITIAL_TOOL;
+    penColor = INITIAL_COLOR;
+    penSize = INITIAL_SIZE;
+    whiteMode = false;
+    setTool(INITIAL_TOOL);
+    renderColorSelection();
+    sizeSlider.value = String(INITIAL_SIZE);
+    sizeLabel.textContent = `${INITIAL_SIZE}px`;
+
+    // Reset laser state.
+    laserMode = false;
+    laserTrail = [];
+    laserX = -999;
+    laserY = -999;
+    if (laserAnimId) {
+      cancelAnimationFrame(laserAnimId);
+      laserAnimId = null;
+    }
+
+    // Restore toolbar/FAB positions to startup defaults.
+    bar.style.removeProperty('left');
+    bar.style.removeProperty('bottom');
+    bar.style.setProperty('top', '80px', 'important');
+    bar.style.setProperty('right', '18px', 'important');
+    fab.style.removeProperty('left');
+    fab.style.removeProperty('top');
+    fab.style.setProperty('right', '18px', 'important');
+    fab.style.setProperty('bottom', '18px', 'important');
+  }
+
+  function doodleExtensionToggle(forceActive) {
+    if (!isOwner()) return;
+    active = (typeof forceActive === 'boolean') ? forceActive : !active;
+    if (active) hideAllOverlayUIInPage();
     canvas.style.setProperty('pointer-events', active ? 'all' : 'none', 'important');
     bar.style.setProperty('display', active ? 'block' : 'none', 'important');
     fab.textContent = '✏️';
     fab.style.setProperty('background', active ? 'rgba(99,102,241,0.92)' : 'rgba(25,25,35,0.85)', 'important');
     fab.style.setProperty('box-shadow', active ? '0 0 0 3px rgba(99,102,241,0.5),0 3px 14px rgba(0,0,0,0.45)' : '0 3px 14px rgba(0,0,0,0.45)', 'important');
-    // 離開塗鴉模式時清除所有塗鴉
+    // 離開塗鴉模式時徹底清除並回到初始狀態
     if (!active) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      snapshots = [];
+      resetOverlayState();
+      hideAllOverlayUIInPage();
     }
   }
 
-  fab.addEventListener('click', e => { e.stopPropagation(); toggle(); });
-
   function toggleWhiteMode() {
+    if (!isOwner()) return;
     whiteMode = !whiteMode;
     if (whiteMode) {
-      if (!active) toggle();
+      if (!active) doodleExtensionToggle();
       snapshots.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
       if (snapshots.length > 40) snapshots.shift();
       ctx.save();
@@ -421,7 +544,7 @@
       fab.style.setProperty('background', 'rgba(200,200,200,0.92)', 'important');
       fab.textContent = '📋';
     } else {
-      if (active) toggle();
+      if (active) doodleExtensionToggle();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       snapshots = [];
       fab.textContent = '✏️';
@@ -448,8 +571,19 @@
     if (id === '__doodle_undo')  { if (snapshots.length) ctx.putImageData(snapshots.pop(), 0, 0); return; }
     if (id === '__doodle_clear') { ctx.clearRect(0, 0, canvas.width, canvas.height); snapshots = []; return; }
     if (id === '__doodle_laser_btn') { toggleLaser(); return; }
-    if (id === '__doodle_close') { toggle(); return; }
+    if (id === '__doodle_close') { doodleExtensionToggle(false); return; }
   });
+
+  // Capture close-button clicks globally to avoid stale duplicated instances swallowing state sync.
+  document.addEventListener('click', e => {
+    if (!isOwner()) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (!target) return;
+    if (!target.closest('#__doodle_close')) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    doodleExtensionToggle(false);
+  }, true);
 
   const sizeSlider = bar.querySelector('#__doodle_size');
   const sizeLabel  = bar.querySelector('#__doodle_sizeval');
@@ -460,6 +594,12 @@
 
   /* ── 鍵盤快捷鍵 ── */
   document.addEventListener('keydown', e => {
+    if (!isOwner()) return;
+    if (e.altKey && e.shiftKey && (e.key === 'd' || e.key === 'D')) {
+      e.preventDefault();
+      doodleExtensionToggle(!anyToolbarVisibleInPage());
+      return;
+    }
     if (!active) return;
     if (!e.ctrlKey && !e.metaKey && !e.altKey) {
       if (e.key === 'w' || e.key === 'W') { e.preventDefault(); toggleWhiteMode(); return; }
@@ -476,4 +616,6 @@
     }
   });
 
+  // For debugging: expose toggle globally (after all declarations)
+  window.doodleExtensionToggle = doodleExtensionToggle;
 })();
