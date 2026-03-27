@@ -397,6 +397,11 @@
     fab.textContent = '✏️';
     fab.style.setProperty('background', active ? 'rgba(99,102,241,0.92)' : 'rgba(25,25,35,0.85)', 'important');
     fab.style.setProperty('box-shadow', active ? '0 0 0 3px rgba(99,102,241,0.5),0 3px 14px rgba(0,0,0,0.45)' : '0 3px 14px rgba(0,0,0,0.45)', 'important');
+    // 離開塗鴉模式時清除所有塗鴉
+    if (!active) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      snapshots = [];
+    }
   }
 
   fab.addEventListener('click', e => { e.stopPropagation(); toggle(); });
