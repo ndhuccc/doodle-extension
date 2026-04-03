@@ -33,7 +33,7 @@
   let dragOffX = 0, dragOffY = 0;
   const INITIAL_TOOL = 'pen';
   const INITIAL_COLOR = '#ef4444';
-  const INITIAL_SIZE = 5;
+  const INITIAL_SIZE = 3;
   let tool     = INITIAL_TOOL;
   let penColor = INITIAL_COLOR;
   let penSize  = INITIAL_SIZE;
@@ -167,9 +167,9 @@
   fab.title = '塗鴉白板';
   fab.textContent = '✏️';
   fab.style.cssText = 'all:unset!important;position:fixed!important;bottom:18px!important;' +
-    'right:18px!important;z-index:2147483647!important;width:46px!important;height:46px!important;' +
+    'right:18px!important;z-index:2147483647!important;width:31px!important;height:31px!important;' +
     'border-radius:50%!important;background:rgba(25,25,35,0.85)!important;color:#fff!important;' +
-    'font-size:20px!important;cursor:pointer!important;line-height:46px!important;' +
+    'font-size:14px!important;cursor:pointer!important;line-height:31px!important;' +
     'text-align:center!important;box-shadow:0 3px 14px rgba(0,0,0,0.45)!important;' +
     'display:block!important;transition:background .2s!important;';
 
@@ -501,15 +501,7 @@
       laserAnimId = null;
     }
 
-    // Restore toolbar/FAB positions to startup defaults.
-    bar.style.removeProperty('left');
-    bar.style.removeProperty('bottom');
-    bar.style.setProperty('top', '80px', 'important');
-    bar.style.setProperty('right', '18px', 'important');
-    fab.style.removeProperty('left');
-    fab.style.removeProperty('top');
-    fab.style.setProperty('right', '18px', 'important');
-    fab.style.setProperty('bottom', '18px', 'important');
+    // Intentionally preserve toolbar/FAB positions so drag-repositioning survives mode toggles.
   }
 
   function doodleExtensionToggle(forceActive) {
