@@ -234,7 +234,7 @@
       <!-- 動作 -->
       <button id="__doodle_undo"  title="復原 (Ctrl+Z)" style="${btnBase}">↩️</button>
       <button id="__doodle_clear" title="清除全部"       style="${btnBase}">🗑️</button>
-      <button id="__doodle_close" title="關閉 (Alt+Shift+D)" style="${btnBase}background:#ef4444;border-radius:7px;font-size:13px;font-weight:700;">✕</button>
+      <button id="__doodle_close" title="關閉 (Alt+X / Alt+Shift+D)" style="${btnBase}background:#ef4444;border-radius:7px;font-size:13px;font-weight:700;">✕</button>
     </div>
   `;
 
@@ -587,6 +587,11 @@
   /* ── 鍵盤快捷鍵 ── */
   document.addEventListener('keydown', e => {
     if (!isOwner()) return;
+    if (e.altKey && (e.key === 'x' || e.key === 'X') && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      doodleExtensionToggle(!anyToolbarVisibleInPage());
+      return;
+    }
     if (e.altKey && e.shiftKey && (e.key === 'd' || e.key === 'D')) {
       e.preventDefault();
       doodleExtensionToggle(!anyToolbarVisibleInPage());
